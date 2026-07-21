@@ -1,0 +1,36 @@
+# Gitleaks config — POC de triagem com IA
+# Docs: https://github.com/gitleaks/gitleaks
+
+title = "gitleaks-ai-triage-poc"
+
+[extend]
+# Usa as regras default do Gitleaks e adiciona allowlists abaixo
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Allowlists iniciais: reduzem FPs óbvios (docs / placeholders).
+# Findings em app/ de produção NÃO entram aqui — devem ir para a IA.
+# ---------------------------------------------------------------------------
+
+[[allowlists]]
+id = "docs-and-markdown"
+description = "Exemplos em documentação"
+paths = [
+  '''gitleaks\.toml''',
+  '''(.*?)(README|CHANGELOG|LICENSE|PATENTS|CONTRIBUTING|COPYING)(\..*)?$''',
+  '''sample-app/docs/.*''',
+]
+
+[[allowlists]]
+id = "env-examples"
+description = "Arquivos de exemplo de ambiente"
+paths = [
+  '''(.*?)(\.env\.example|\.env\.sample|\.env\.template)$''',
+]
+
+[[allowlists]]
+id = "obvious-placeholders"
+description = "Placeholders comuns que não são secrets reais"
+regexes = [
+  '''(?i)(changeme|replace_me|your[_-]?api[_-]?key|xxx+|example|dummy|placeholder|not[_-]?a[_-]?secret)''',
+]
