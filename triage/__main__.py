@@ -8,6 +8,12 @@ import sys
 from pathlib import Path
 
 from .classify import classify_finding
+from .report import (
+    emit_github_annotations,
+    print_console_report,
+    print_gate_result,
+    write_github_step_summary,
+)
 from .suggest_rules import build_suggested_toml
 
 
@@ -48,6 +54,7 @@ def main(argv: list[str] | None = None) -> int:
     findings = load_findings(args.findings)
     report: list[dict] = []
 
+    print(f"Analisando {len(findings)} finding(s) do Gitleaks...")
     for finding in findings:
         result = classify_finding(finding)
         entry = {
@@ -61,28 +68,32 @@ def main(argv: list[str] | None = None) -> int:
             "source": result.source,
         }
         report.append(entry)
-        print(
-            f"[{result.verdict}] ({result.source}) "
-            f"{entry['file']}:{entry['start_line']} — {result.reason}"
-        )
 
     args.out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     args.suggested_toml.write_text(build_suggested_toml(report), encoding="utf-8")
-    print(f"\nRelatório: {args.out}")
-    print(f"Sugestões TOML: {args.suggested_toml}")
+
+    print_console_report(report)
+    emit_github_annotations(report)
 
     tps = [r for r in report if r["verdict"] == "true_positive"]
     uncertain = [r for r in report if r["verdict"] == "uncertain"]
 
+    fail = False
     if args.fail_on == "true_positive" and tps:
-        print(f"\nFAIL: {len(tps)} verdadeiro(s) positivo(s)")
-        return 1
+        fail = True
     if args.fail_on == "true_positive_or_uncertain" and (tps or uncertain):
-        print(f"\nFAIL: {len(tps)} TP(s), {len(uncertain)} incerto(s)")
-        return 1
+        fail = True
 
-    print(f"\nOK: {len(report)} finding(s) triados; gate passou")
-    return 0
+    print_gate_result(ok=not fail, tps=len(tps), uncertain=len(uncertain))
+    write_github_step_summary(
+        report,
+        ok=not fail,
+        out_json=args.out,
+        suggested_toml=args.suggested_toml,
+    )
+
+    print(f"Arquivos: {args.out} | {args.suggested_toml}")
+    return 1 if fail else 0
 
 
 if __name__ == "__main__":
