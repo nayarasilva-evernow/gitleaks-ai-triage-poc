@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.out/
+findings.json
+triage-report.json
+suggested_rules.toml
+*.egg-info/
+.pytest_cache/
