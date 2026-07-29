@@ -1,0 +1,51 @@
+# Extensões de keystore / material criptográfico a localizar (somente path)
+keystore_extensions:
+  - .jks
+  - .keystore
+  - .p12
+  - .pfx
+
+# Extensões complementares (cert/chave em arquivo) — opcional na mesma varredura
+cert_file_extensions:
+  - .pem
+  - .crt
+  - .cer
+  - .key
+
+# Incluir cert_file_extensions na varredura de árvore?
+include_cert_files: true
+
+# Pausar quando restarem menos que N requests no budget da API
+rate_limit_floor: 50
+
+# Sleep mínimo entre requests (segundos) — protege o budget
+min_request_interval_seconds: 0.35
+
+# Incluir forks / arquivados?
+include_forks: false
+include_archived: false
+
+# Caminho opcional da foto Gitleaks (Excel). Aba DETALHES com Tipo_Segredo.
+# Deixe vazio se não for usar nesta execução.
+gitleaks_excel: ""
+
+# Palavras em Tipo_Segredo que indicam cert/chave (case-insensitive, substring)
+gitleaks_cert_keywords:
+  - cert
+  - certificate
+  - private
+  - public key
+  - rsa
+  - ssh
+  - pgp
+  - pem
+  - pkcs
+  - tls
+  - ssl
+  - jwt
+  - key
+
+# Pastas de trabalho (relativas a este projeto)
+paths:
+  checkpoint_dir: data/checkpoints
+  output_dir: data/output

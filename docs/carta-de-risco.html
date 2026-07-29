@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Carta de Aceite de Risco — Secret Scanning</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #171c24;
+      --soft: #4a5568;
+      --muted: #7a8494;
+      --line: #dde2ea;
+      --paper: #f4f1ec;
+      --card: #fff;
+      --accent: #9a3412;
+      --accent-bg: #faf4f0;
+      --ok: #1f5c4a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Outfit", system-ui, sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .sheet {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 24px 64px;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .sheet { padding: 0; max-width: none; }
+      .no-print { display: none !important; }
+      .field { border-bottom-color: #999 !important; }
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-bottom: 16px;
+      position: sticky;
+      top: 0;
+      padding: 10px 0;
+      background: var(--paper);
+    }
+
+    .actions button {
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 500;
+      border: 1px solid var(--line);
+      background: var(--card);
+      padding: 8px 14px;
+      cursor: pointer;
+      color: var(--ink);
+    }
+
+    .doc {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 40px 40px 36px;
+    }
+
+    @media (max-width: 600px) {
+      .doc { padding: 28px 22px; }
+    }
+
+    .doc-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid var(--ink);
+    }
+
+    .doc-top h1 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 1.85rem;
+      font-weight: 600;
+      line-height: 1.2;
+      max-width: 14ch;
+    }
+
+    .badge {
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--accent);
+      border: 1px solid #e8c4b4;
+      background: var(--accent-bg);
+      padding: 6px 10px;
+      white-space: nowrap;
+    }
+
+    .intro {
+      font-size: 0.92rem;
+      color: var(--soft);
+      margin-bottom: 28px;
+      max-width: 58ch;
+    }
+
+    h2 {
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--muted);
+      margin: 22px 0 10px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 20px;
+    }
+
+    @media (max-width: 560px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .field-block label {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
+    .field {
+      width: 100%;
+      border: none;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      font-family: inherit;
+      font-size: 0.9rem;
+      color: var(--ink);
+      padding: 6px 0;
+      outline: none;
+    }
+
+    .field:focus { border-bottom-color: var(--ink); }
+
+    textarea.field {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      min-height: 88px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    textarea.field:focus { border-color: var(--ink); }
+
+    .full { grid-column: 1 / -1; }
+
+    .box {
+      background: var(--accent-bg);
+      border-left: 3px solid var(--accent);
+      padding: 14px 16px;
+      margin-top: 8px;
+    }
+
+    .box p {
+      font-size: 0.86rem;
+      color: var(--soft);
+    }
+
+    .box strong {
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    ul.check {
+      list-style: none;
+      margin-top: 4px;
+    }
+
+    ul.check li {
+      font-size: 0.88rem;
+      color: var(--soft);
+      padding: 8px 0 8px 28px;
+      position: relative;
+      border-bottom: 1px solid var(--line);
+    }
+
+    ul.check li:last-child { border-bottom: none; }
+
+    ul.check li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 11px;
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid #b0b8c4;
+      border-radius: 2px;
+    }
+
+    .notice {
+      margin-top: 24px;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      font-size: 0.84rem;
+      color: var(--soft);
+    }
+
+    .notice em {
+      font-style: normal;
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    .signs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      margin-top: 36px;
+      padding-top: 8px;
+    }
+
+    @media (max-width: 560px) {
+      .signs { grid-template-columns: 1fr; }
+    }
+
+    .sign-line {
+      border-top: 1px solid var(--ink);
+      padding-top: 10px;
+      margin-top: 48px;
+    }
+
+    .sign-line .role {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .sign-line .hint {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    footer {
+      margin-top: 28px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="actions no-print">
+      <button type="button" onclick="window.print()">Imprimir / PDF</button>
+    </div>
+
+    <article class="doc">
+      <div class="doc-top">
+        <h1>Carta de Aceite de Risco</h1>
+        <span class="badge">Secret Scanning</span>
+      </div>
+
+      <p class="intro">
+        Use este documento quando a equipe de Cybersegurança solicitar
+        formalização de aceite de risco para seguir com merge, deploy ou
+        exceção temporária após finding de secret scanning classificado como
+        verdadeiro positivo (ou incerto com impacto).
+      </p>
+
+      <h2>Identificação</h2>
+      <div class="grid">
+        <div class="field-block">
+          <label>Solicitante</label>
+          <input class="field" type="text" placeholder="Nome completo" />
+        </div>
+        <div class="field-block">
+          <label>Área / time</label>
+          <input class="field" type="text" placeholder="Ex.: Engenharia de Plataforma" />
+        </div>
+        <div class="field-block">
+          <label>Repositório</label>
+          <input class="field" type="text" placeholder="org/nome-do-repo" />
+        </div>
+        <div class="field-block">
+          <label>PR / commit / run</label>
+          <input class="field" type="text" placeholder="URL da pipeline ou nº do PR" />
+        </div>
+        <div class="field-block full">
+          <label>Finding (arquivo, regra, resumo)</label>
+          <textarea class="field" placeholder="Ex.: app/config.py · stripe-access-token · chave live detectada"></textarea>
+        </div>
+      </div>
+
+      <h2>Natureza do risco</h2>
+      <div class="box">
+        <p>
+          Um <strong>verdadeiro positivo</strong> no gate de secret scanning indica
+          credencial ou segredo potencialmente real no histórico ou no código.
+          Seguir sem remediação pode expor sistemas, dados de clientes e a
+          reputação da empresa. Este aceite <strong>não substitui</strong> a
+          remoção e a rotação do segredo — apenas registra a decisão consciente
+          de avançar sob condições e prazo definidos.
+        </p>
+      </div>
+
+      <h2>Justificativa do solicitante</h2>
+      <div class="field-block" style="margin-top: 4px;">
+        <label>Por que o aceite é necessário agora?</label>
+        <textarea class="field" placeholder="Contexto de negócio, urgência, alternativas avaliadas…"></textarea>
+      </div>
+
+      <h2>Compromissos (marque e cumpra)</h2>
+      <ul class="check">
+        <li>O secret será removido do código e o histórico tratado conforme orientação de Cyber</li>
+        <li>A credencial será rotacionada / invalidada no provedor</li>
+        <li>Prazo máximo de remediação: ________ / ________ / ________</li>
+        <li>Monitoramento ou compensação acordada com Cyber até a remediação</li>
+      </ul>
+
+      <div class="notice">
+        <em>Atenção:</em> aceite sem prazo e sem plano de remediação não deve ser
+        aprovado. Em caso de dúvida, priorize bloquear o merge e abrir chamado
+        à Cybersegurança antes de assinar.
+      </div>
+
+      <h2>Assinaturas</h2>
+      <div class="signs">
+        <div class="sign-line">
+          <div class="role">Solicitante (área dona do risco)</div>
+          <div class="hint">Nome, data e assinatura</div>
+        </div>
+        <div class="sign-line">
+          <div class="role">Cybersegurança (ciência / parecer)</div>
+          <div class="hint">Nome, data e assinatura</div>
+        </div>
+      </div>
+
+      <footer>
+        Modelo padrão · Secret scan + triagem IA · Anexar ao chamado de Cyber quando solicitado
+      </footer>
+    </article>
+  </div>
+</body>
+</html>

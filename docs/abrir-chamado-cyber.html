@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Como abrir chamado — Cybersegurança</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a2332;
+      --soft: #3d4a5c;
+      --muted: #6b7789;
+      --line: #e2e6ed;
+      --paper: #f7f5f1;
+      --card: #fff;
+      --accent: #1f5c4a;
+      --accent-soft: #e8f2ee;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Outfit", system-ui, sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    .page { max-width: 680px; margin: 0 auto; padding: 48px 24px 64px; }
+    h1 {
+      font-family: "Cormorant Garamond", Georgia, serif;
+      font-size: 2rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .lede { color: var(--soft); font-size: 0.95rem; margin-bottom: 28px; max-width: 52ch; }
+    h2 {
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+      margin: 24px 0 10px;
+    }
+    ol { padding-left: 1.2rem; color: var(--soft); font-size: 0.92rem; }
+    ol li { margin-bottom: 10px; padding-left: 4px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 16px 18px;
+      margin: 12px 0;
+      font-size: 0.88rem;
+      color: var(--soft);
+    }
+    .card code {
+      font-size: 0.82rem;
+      background: var(--paper);
+      padding: 1px 6px;
+      border: 1px solid var(--line);
+    }
+    .callout {
+      background: var(--accent-soft);
+      border-left: 3px solid var(--accent);
+      padding: 14px 16px;
+      margin-top: 24px;
+      font-size: 0.9rem;
+      color: var(--ink);
+    }
+    .callout a { color: var(--accent); font-weight: 500; }
+    a { color: var(--accent); }
+    .note { margin-top: 20px; font-size: 0.78rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Abrir chamado na Cybersegurança</h1>
+    <p class="lede">
+      Oriente-se por estes passos quando a pipeline de secret scanning falhar
+      com verdadeiro positivo (ou quando o time precisar de parecer formal).
+    </p>
+
+    <h2>Passo a passo</h2>
+    <ol>
+      <li>
+        Acesse o portal de atendimento da Cybersegurança da empresa
+        (Service Desk / ITSM — substitua pelo URL oficial da sua organização).
+      </li>
+      <li>
+        Abra um chamado na categoria <strong>AppSec / Secret Scanning</strong>
+        (ou equivalente: “Vazamento de credencial”, “Security gate”).
+      </li>
+      <li>
+        No corpo do chamado, informe:
+        <div class="card">
+          • Repositório e link do PR<br />
+          • Link da run da GitHub Actions (Summary da triagem)<br />
+          • Veredicto da IA (verdadeiro positivo / incerto)<br />
+          • Arquivo, regra Gitleaks e motivo resumido<br />
+          • O que já foi feito (remoção, rotação, allowlist)
+        </div>
+      </li>
+      <li>
+        Anexe ou referencie os artifacts <code>triage-report.json</code> e
+        <code>findings.json</code> da run.
+      </li>
+      <li>
+        Aguarde o parecer. Se Cyber solicitar <strong>carta de risco</strong>,
+        use o modelo abaixo, preencha, assine com a área dona do risco e anexe
+        ao mesmo chamado.
+      </li>
+    </ol>
+
+    <div class="callout">
+      Modelo pronto:
+      <a href="./carta-de-risco.html">Carta de Aceite de Risco</a>
+      — breve, preenchível e imprimível em PDF.
+    </div>
+
+    <p class="note">
+      Ajuste o URL do portal ITSM neste documento conforme o padrão interno da
+      empresa. A pipeline de CI aponta para este guia e para a carta de risco.
+    </p>
+  </div>
+</body>
+</html>
