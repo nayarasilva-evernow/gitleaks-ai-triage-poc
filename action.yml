@@ -1,0 +1,242 @@
+name: "Secret scan + AI triage"
+description: "Roda Gitleaks no diff do PR e classifica os findings com IA (Groq/Ollama), separando falso positivo de credencial real."
+author: "nayarasilva-evernow"
+
+branding:
+  icon: "shield"
+  color: "red"
+
+inputs:
+  groq-api-key:
+    description: "Chave da API Groq (secrets.GROQ_API_KEY). Obrigatória quando triage-provider=groq."
+    required: false
+    default: ""
+  triage-provider:
+    description: "Provider de IA: groq (cloud) ou ollama (local)."
+    required: false
+    default: "groq"
+  triage-model:
+    description: "Modelo usado na triagem."
+    required: false
+    default: "openai/gpt-oss-20b"
+  scan-scope:
+    description: "diff = só os commits novos do PR/push | full = todo o histórico."
+    required: false
+    default: "diff"
+  fail-on:
+    description: "Quando o gate bloqueia: true_positive ou true_positive_or_uncertain."
+    required: false
+    default: "true_positive"
+  gitleaks-config:
+    description: "Caminho do .gitleaks.toml. Vazio = usa o do repositório escaneado, ou o padrão da action."
+    required: false
+    default: ""
+  gitleaks-version:
+    description: "Versão do Gitleaks CLI."
+    required: false
+    default: "8.21.2"
+  python-version:
+    description: "Versão do Python usada na triagem."
+    required: false
+    default: "3.12"
+  doc-chamado-url:
+    description: "URL do guia de abertura de chamado (portal interno). Vazio = doc da própria action."
+    required: false
+    default: ""
+  doc-carta-url:
+    description: "URL do modelo de carta de aceite de risco. Vazio = doc da própria action."
+    required: false
+    default: ""
+  report-json:
+    description: "Arquivo de saída com o relatório de triagem."
+    required: false
+    default: "triage-report.json"
+  suggested-toml:
+    description: "Arquivo de saída com allowlists sugeridas."
+    required: false
+    default: "suggested_rules.toml"
+
+outputs:
+  report-json:
+    description: "Caminho do relatório de triagem."
+    value: ${{ inputs.report-json }}
+  suggested-toml:
+    description: "Caminho do TOML com allowlists sugeridas."
+    value: ${{ inputs.suggested-toml }}
+  total:
+    description: "Total de findings analisados."
+    value: ${{ steps.counts.outputs.total }}
+  true-positives:
+    description: "Findings que precisam de análise de DevSecOps."
+    value: ${{ steps.counts.outputs.true_positives }}
+  false-positives:
+    description: "Findings classificados como falso positivo."
+    value: ${{ steps.counts.outputs.false_positives }}
+  uncertain:
+    description: "Findings incertos."
+    value: ${{ steps.counts.outputs.uncertain }}
+  gate-passed:
+    description: "true quando o gate passou."
+    value: ${{ steps.counts.outputs.gate_passed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Instalar dependências da triagem
+      shell: bash
+      run: pip install --disable-pip-version-check -r "$GITHUB_ACTION_PATH/requirements.txt"
+
+    - name: Instalar Gitleaks CLI
+      shell: bash
+      env:
+        GITLEAKS_VERSION: ${{ inputs.gitleaks-version }}
+      run: |
+        set -euo pipefail
+        bin_dir="$HOME/.local/bin"
+        mkdir -p "$bin_dir"
+        url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+        curl -sSfL "$url" | tar -xz -C "$bin_dir" gitleaks
+        chmod +x "$bin_dir/gitleaks"
+        echo "$bin_dir" >> "$GITHUB_PATH"
+        "$bin_dir/gitleaks" version
+
+    - name: Resolver escopo do scan
+      id: scope
+      shell: bash
+      env:
+        SCAN_SCOPE: ${{ inputs.scan-scope }}
+        PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        PUSH_BEFORE: ${{ github.event.before }}
+      run: |
+        set -uo pipefail
+        empty_sha="0000000000000000000000000000000000000000"
+
+        if [ "$SCAN_SCOPE" = "full" ]; then
+          echo "Escopo: histórico completo."
+          echo "log_opts=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        base=""
+        head=""
+        case "$GITHUB_EVENT_NAME" in
+          pull_request | pull_request_target)
+            base="${PR_BASE_SHA:-}"
+            head="${PR_HEAD_SHA:-}"
+            ;;
+          push)
+            if [ "${PUSH_BEFORE:-}" != "$empty_sha" ]; then
+              base="${PUSH_BEFORE:-}"
+              head="$GITHUB_SHA"
+            fi
+            ;;
+        esac
+
+        commit_exists() {
+          [ -n "$1" ] && git rev-parse --verify --quiet "$1^{commit}" >/dev/null 2>&1
+        }
+
+        # Sem range utilizável (primeiro push, execução manual, clone shallow):
+        # escaneia apenas o commit atual em vez do histórico inteiro.
+        if ! commit_exists "$base" || ! commit_exists "$head"; then
+          echo "::notice::Range de commits indisponível — escaneando apenas o commit atual. Use fetch-depth: 0 no checkout para cobrir o diff completo."
+          echo "log_opts=-1" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        range="${base}..${head}"
+        echo "Escopo: $(git rev-list --count "$range") commit(s) em $range"
+        echo "log_opts=$range" >> "$GITHUB_OUTPUT"
+
+    - name: Resolver config do Gitleaks
+      id: config
+      shell: bash
+      env:
+        CONFIG_INPUT: ${{ inputs.gitleaks-config }}
+      run: |
+        set -uo pipefail
+        if [ -n "$CONFIG_INPUT" ]; then
+          if [ ! -f "$CONFIG_INPUT" ]; then
+            echo "::error::gitleaks-config não encontrado: $CONFIG_INPUT"
+            exit 1
+          fi
+          path="$CONFIG_INPUT"
+        elif [ -f ".gitleaks.toml" ]; then
+          path=".gitleaks.toml"
+        else
+          path="$GITHUB_ACTION_PATH/action/gitleaks-default.toml"
+        fi
+        echo "Config: $path"
+        echo "path=$path" >> "$GITHUB_OUTPUT"
+
+    - name: Escanear com Gitleaks
+      shell: bash
+      env:
+        LOG_OPTS: ${{ steps.scope.outputs.log_opts }}
+        CONFIG_PATH: ${{ steps.config.outputs.path }}
+      run: |
+        set -uo pipefail
+        args=(detect --source . --config "$CONFIG_PATH" --report-path findings.json --report-format json --verbose)
+        if [ -n "$LOG_OPTS" ]; then
+          args+=(--log-opts "$LOG_OPTS")
+        fi
+        # exit 1 = encontrou leaks; quem decide o gate é a triagem
+        gitleaks "${args[@]}" || true
+        if [ ! -f findings.json ]; then
+          echo "[]" > findings.json
+        fi
+        echo "Findings brutos: $(python -c 'import json;print(len(json.load(open("findings.json"))))')"
+
+    - name: Triagem com IA
+      id: triage
+      shell: bash
+      env:
+        TRIAGE_PROVIDER: ${{ inputs.triage-provider }}
+        TRIAGE_MODEL: ${{ inputs.triage-model }}
+        GROQ_API_KEY: ${{ inputs.groq-api-key }}
+        TRIAGE_DOC_CHAMADO_URL: ${{ inputs.doc-chamado-url }}
+        TRIAGE_DOC_CARTA_URL: ${{ inputs.doc-carta-url }}
+        REPORT_JSON: ${{ inputs.report-json }}
+        SUGGESTED_TOML: ${{ inputs.suggested-toml }}
+        FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        set -uo pipefail
+        # cwd no diretório da action para importar o pacote triage sem colidir
+        # com um diretório de mesmo nome no repositório escaneado
+        cd "$GITHUB_ACTION_PATH"
+        python -m triage \
+          --findings "$GITHUB_WORKSPACE/findings.json" \
+          --out "$GITHUB_WORKSPACE/$REPORT_JSON" \
+          --suggested-toml "$GITHUB_WORKSPACE/$SUGGESTED_TOML" \
+          --fail-on "$FAIL_ON"
+        echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+    - name: Ler contagens do relatório
+      id: counts
+      if: always()
+      shell: bash
+      env:
+        REPORT_JSON: ${{ inputs.report-json }}
+        TRIAGE_EXIT: ${{ steps.triage.outputs.exit_code }}
+      run: python "$GITHUB_ACTION_PATH/action/report_counts.py" "$REPORT_JSON" "$TRIAGE_EXIT"
+
+    - name: Gate
+      if: always() && steps.triage.outputs.exit_code != '0'
+      shell: bash
+      env:
+        REPORT_JSON: ${{ inputs.report-json }}
+        TRUE_POSITIVES: ${{ steps.counts.outputs.true_positives }}
+      run: |
+        set -uo pipefail
+        if [ ! -f "$REPORT_JSON" ]; then
+          echo "::error::A triagem não gerou relatório — falha de execução, não do gate. Veja o log do step 'Triagem com IA'."
+          exit 1
+        fi
+        echo "::error::Gate bloqueado: $TRUE_POSITIVES finding(s) precisam de análise de DevSecOps. Detalhes no Summary da run."
+        exit 1

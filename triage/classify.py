@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any, Literal
 
 from openai import BadRequestError, OpenAI
@@ -72,6 +73,30 @@ TRIAGE_JSON_SCHEMA: dict[str, Any] = {
     },
     "required": ["verdict", "confidence", "reason", "suggested_allowlist"],
     "additionalProperties": False,
+}
+
+# Diretórios/arquivos que tipicamente concentram FPs em qualquer repositório
+FP_DIR_NAMES = {
+    "test",
+    "tests",
+    "spec",
+    "specs",
+    "fixtures",
+    "testdata",
+    "docs",
+    "doc",
+    "examples",
+    "example",
+    "samples",
+}
+
+FP_FILE_NAMES = {
+    ".env.example",
+    ".env.sample",
+    ".env.template",
+    "readme.md",
+    "changelog.md",
+    "contributing.md",
 }
 
 
@@ -205,11 +230,17 @@ def classify_finding(finding: dict[str, Any], client: OpenAI | None = None) -> T
 
 
 def _suggest_from_path(finding: dict[str, Any]) -> str | None:
-    path = (finding.get("File") or finding.get("file") or "").replace("\\", "/")
+    """Sugere allowlist a partir do diretório do finding, sem caminhos fixos."""
+    path = (finding.get("File") or finding.get("file") or "").replace("\\", "/").removeprefix("./")
     if not path:
         return None
-    if "/tests/" in f"/{path}" or path.startswith("sample-app/tests/"):
-        return "paths = ['''sample-app/tests/.*''']"
-    if "/docs/" in f"/{path}":
-        return "paths = ['''sample-app/docs/.*''']"
+
+    parts = path.split("/")
+    for i, part in enumerate(parts[:-1]):
+        if part.lower() in FP_DIR_NAMES:
+            prefix = "/".join(parts[: i + 1])
+            return f"paths = ['''{re.escape(prefix)}/.*''']"
+
+    if parts[-1].lower() in FP_FILE_NAMES:
+        return f"paths = ['''{re.escape(path)}$''']"
     return None

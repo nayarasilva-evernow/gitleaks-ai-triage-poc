@@ -24,19 +24,28 @@ DOC_CARTA_RISCO = "docs/carta-de-risco.html"
 
 
 def _repo_blob_url(rel_path: str) -> str | None:
-    """URL do arquivo no GitHub (blob) quando rodando em Actions."""
+    """URL do arquivo no GitHub (blob) quando rodando em Actions.
+
+    Rodando como action reutilizável, os docs vivem no repositório da action —
+    não no repositório que está sendo escaneado.
+    """
     server = os.getenv("GITHUB_SERVER_URL", "https://github.com").rstrip("/")
+    action_repo = os.getenv("GITHUB_ACTION_REPOSITORY")
+    if action_repo:
+        ref = os.getenv("GITHUB_ACTION_REF") or "main"
+        return f"{server}/{action_repo}/blob/{ref}/{rel_path}"
+
     repo = os.getenv("GITHUB_REPOSITORY")
-    ref = os.getenv("GITHUB_SHA") or os.getenv("GITHUB_REF_NAME") or "main"
     if not repo:
         return None
+    ref = os.getenv("GITHUB_SHA") or os.getenv("GITHUB_REF_NAME") or "main"
     return f"{server}/{repo}/blob/{ref}/{rel_path}"
 
 
 def _doc_links() -> tuple[str, str]:
     """Retorna (link_chamado, link_carta) — URL absoluta ou caminho relativo."""
-    chamado = _repo_blob_url(DOC_ABRIR_CHAMADO) or DOC_ABRIR_CHAMADO
-    carta = _repo_blob_url(DOC_CARTA_RISCO) or DOC_CARTA_RISCO
+    chamado = os.getenv("TRIAGE_DOC_CHAMADO_URL") or _repo_blob_url(DOC_ABRIR_CHAMADO) or DOC_ABRIR_CHAMADO
+    carta = os.getenv("TRIAGE_DOC_CARTA_URL") or _repo_blob_url(DOC_CARTA_RISCO) or DOC_CARTA_RISCO
     return chamado, carta
 
 

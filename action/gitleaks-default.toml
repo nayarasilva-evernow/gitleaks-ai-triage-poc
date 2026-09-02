@@ -1,0 +1,44 @@
+# Config padrão da action de triagem — usada quando o repositório escaneado
+# não tem um .gitleaks.toml próprio.
+# Docs: https://github.com/gitleaks/gitleaks
+
+title = "secret-scan-ai-triage"
+
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Allowlists genéricas: cortam FPs óbvios de documentação e exemplos.
+# Código de aplicação NÃO entra aqui — esses findings vão para a IA.
+# ---------------------------------------------------------------------------
+
+[[allowlists]]
+id = "docs-and-markdown"
+description = "Exemplos em documentação"
+paths = [
+  '''gitleaks\.toml''',
+  '''(.*?)(README|CHANGELOG|LICENSE|PATENTS|CONTRIBUTING|COPYING)(\..*)?$''',
+  '''(^|/)(docs?|examples?|samples)/.*''',
+]
+
+[[allowlists]]
+id = "env-examples"
+description = "Arquivos de exemplo de ambiente"
+paths = [
+  '''(.*?)(\.env\.example|\.env\.sample|\.env\.template)$''',
+]
+
+[[allowlists]]
+id = "lockfiles-and-vendor"
+description = "Dependências e artefatos gerados"
+paths = [
+  '''(^|/)(node_modules|vendor|dist|build|\.venv)/.*''',
+  '''(^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|Gemfile\.lock|go\.sum)$''',
+]
+
+[[allowlists]]
+id = "obvious-placeholders"
+description = "Placeholders comuns que não são secrets reais"
+regexes = [
+  '''(?i)(changeme|replace_me|your[_-]?api[_-]?key|xxx+|example|dummy|placeholder|not[_-]?a[_-]?secret)''',
+]

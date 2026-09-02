@@ -1,0 +1,62 @@
+# Valida a composite action contra o sample-app deste repositório.
+# Não roda na main: serve para testar a action antes de usá-la em repo real.
+
+name: Self-test da action
+
+on:
+  push:
+    branches: [reusable-action]
+  workflow_dispatch:
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rodar a action no sample-app
+        id: triage
+        # o sample-app tem secrets propositais, então o gate deve bloquear
+        continue-on-error: true
+        uses: ./
+        with:
+          groq-api-key: ${{ secrets.GROQ_API_KEY }}
+          scan-scope: full
+          fail-on: true_positive
+
+      - name: Conferir o resultado esperado
+        env:
+          GATE_PASSED: ${{ steps.triage.outputs.gate-passed }}
+          TOTAL: ${{ steps.triage.outputs.total }}
+          TRUE_POSITIVES: ${{ steps.triage.outputs.true-positives }}
+          FALSE_POSITIVES: ${{ steps.triage.outputs.false-positives }}
+          UNCERTAIN: ${{ steps.triage.outputs.uncertain }}
+        run: |
+          set -uo pipefail
+          echo "total=$TOTAL tp=$TRUE_POSITIVES fp=$FALSE_POSITIVES incertos=$UNCERTAIN gate_passed=$GATE_PASSED"
+
+          if [ "$TOTAL" = "0" ] || [ -z "$TOTAL" ]; then
+            echo "::error::A action não classificou nenhum finding — o sample-app deveria gerar findings."
+            exit 1
+          fi
+          if [ "$GATE_PASSED" = "true" ]; then
+            echo "::error::Esperava o gate bloqueado: o sample-app tem credenciais propositais."
+            exit 1
+          fi
+          echo "Self-test OK: gate bloqueou com $TRUE_POSITIVES finding(s) para análise."
+
+      - name: Upload do relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selftest-triage
+          path: |
+            triage-report.json
+            suggested_rules.toml
+          if-no-files-found: ignore
