@@ -6,7 +6,7 @@ import json
 import os
 from typing import Any, Literal
 
-from openai import OpenAI
+from openai import BadRequestError, OpenAI
 from pydantic import BaseModel, Field
 
 from .heuristics import local_false_positive_hint
@@ -57,6 +57,23 @@ Responda APENAS com JSON válido no formato:
 Seja conservador: na dúvida, use uncertain (não dismiss automático).
 """
 
+# gpt-oss no Groq rejeita json_object (400 json_validate_failed).
+# Structured Outputs (json_schema + strict) é o modo suportado nesse modelo.
+TRIAGE_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "verdict": {
+            "type": "string",
+            "enum": ["true_positive", "false_positive", "uncertain"],
+        },
+        "confidence": {"type": "number"},
+        "reason": {"type": "string"},
+        "suggested_allowlist": {"type": ["string", "null"]},
+    },
+    "required": ["verdict", "confidence", "reason", "suggested_allowlist"],
+    "additionalProperties": False,
+}
+
 
 def _provider_config() -> dict[str, Any]:
     if DEFAULT_PROVIDER not in PROVIDERS:
@@ -97,6 +114,41 @@ def _finding_payload(finding: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _is_oss_model(model: str) -> bool:
+    return "gpt-oss" in model.lower()
+
+
+def _groq_response_format(model: str) -> dict[str, Any]:
+    if _is_oss_model(model):
+        return {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "triage_result",
+                "strict": True,
+                "schema": TRIAGE_JSON_SCHEMA,
+            },
+        }
+    return {"type": "json_object"}
+
+
+def _parse_llm_json(raw: str) -> dict[str, Any]:
+    text = (raw or "").strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.startswith("json"):
+            text = text[4:].strip()
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start == -1 or end <= start:
+            raise
+        data = json.loads(text[start : end + 1])
+    if not isinstance(data, dict):
+        raise ValueError("resposta da IA não é um objeto JSON")
+    return data
+
+
 def classify_with_llm(finding: dict[str, Any], client: OpenAI | None = None) -> TriageResult:
     cfg = _provider_config()
     client = _make_client(client)
@@ -115,19 +167,19 @@ def classify_with_llm(finding: dict[str, Any], client: OpenAI | None = None) -> 
             },
         ],
     }
-    # Groq aceita json_object; Ollama pode variar — tenta e faz fallback
     if DEFAULT_PROVIDER == "groq":
-        kwargs["response_format"] = {"type": "json_object"}
+        kwargs["response_format"] = _groq_response_format(model)
 
-    response = client.chat.completions.create(**kwargs)
+    try:
+        response = client.chat.completions.create(**kwargs)
+    except BadRequestError:
+        # json_object / schema inválido: tenta de novo só com o prompt
+        kwargs.pop("response_format", None)
+        response = client.chat.completions.create(**kwargs)
+
     raw = response.choices[0].message.content or "{}"
-    # Alguns modelos envolvem JSON em ``` — limpa
-    raw = raw.strip()
-    if raw.startswith("```"):
-        raw = raw.strip("`")
-        if raw.startswith("json"):
-            raw = raw[4:].strip()
-    data = json.loads(raw)
+    data = _parse_llm_json(raw)
+    data.pop("source", None)
     return TriageResult(source="llm", **data)
 
 
