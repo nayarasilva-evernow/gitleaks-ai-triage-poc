@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 VERDICT_LABEL = {
-    "true_positive": ("🔴", "Necessária Análise de Cybersecurity", "error"),
+    "true_positive": ("🔴", "Necessaria Analise de DevSecOps", "error"),
     "false_positive": ("🟢", "Falso positivo", "notice"),
     "uncertain": ("🟡", "Incerto", "warning"),
 }
@@ -55,9 +55,9 @@ def print_console_report(report: list[dict[str, Any]]) -> None:
     print("  TRIAGEM DE SECRETS (Gitleaks + IA)")
     print("=" * width)
     print(f"  Total analisado ...... {len(report)}")
-    print(f"  Verdadeiros positivos  {counts.get('true_positive', 0)}")
-    print(f"  Falsos positivos ..... {counts.get('false_positive', 0)}")
-    print(f"  Incertos ............. {counts.get('uncertain', 0)}")
+    print(f"  Necessaria Analise DevSecOps  {counts.get('true_positive', 0)}")
+    print(f"  Falsos positivos ............ {counts.get('false_positive', 0)}")
+    print(f"  Incertos .................... {counts.get('uncertain', 0)}")
     print("=" * width)
 
     order = ("true_positive", "false_positive", "uncertain")
@@ -88,10 +88,10 @@ def print_gate_result(ok: bool, tps: int, uncertain: int) -> None:
     print("=" * width)
     if ok:
         print("  RESULTADO: PASSOU")
-        print("  Nenhum verdadeiro positivo bloqueante.")
+        print("  Nenhuma Necessaria Analise de DevSecOps bloqueante.")
     else:
         print("  RESULTADO: FALHOU")
-        print(f"  {tps} verdadeiro(s) positivo(s) precisam de ação.")
+        print(f"  {tps} finding(s) com Necessaria Analise de DevSecOps.")
         if uncertain:
             print(f"  ({uncertain} finding(s) incerto(s) — revise manualmente)")
         print()
@@ -146,7 +146,7 @@ def write_github_step_summary(
         "",
         "| Veredicto | Qtd |",
         "|-----------|-----|",
-        f"| Verdadeiro positivo | {counts.get('true_positive', 0)} |",
+        f"| Necessaria Analise de DevSecOps | {counts.get('true_positive', 0)} |",
         f"| Falso positivo | {counts.get('false_positive', 0)} |",
         f"| Incerto | {counts.get('uncertain', 0)} |",
         f"| **Total** | **{len(report)}** |",

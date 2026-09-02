@@ -21,7 +21,7 @@ PROVIDERS = {
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
         "api_key_env": "GROQ_API_KEY",
-        "default_model": "llama-3.3-70b-versatile",
+        "default_model": "openai/gpt-oss-20b",
     },
     "ollama": {
         "base_url": os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434/v1"),
