@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 VERDICT_LABEL = {
-    "true_positive": ("🔴", "Verdadeiro positivo", "error"),
+    "true_positive": ("🔴", "Necessária Análise de Cybersecurity", "error"),
     "false_positive": ("🟢", "Falso positivo", "notice"),
     "uncertain": ("🟡", "Incerto", "warning"),
 }
