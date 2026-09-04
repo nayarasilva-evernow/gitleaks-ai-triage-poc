@@ -5,7 +5,7 @@ name: Self-test da action
 
 on:
   push:
-    branches: [reusable-action]
+    branches-ignore: [main, master]
   workflow_dispatch:
 
 jobs:

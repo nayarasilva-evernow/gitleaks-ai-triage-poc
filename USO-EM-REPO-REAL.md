@@ -96,12 +96,40 @@ relatório e o `suggested_rules.toml`, como no exemplo.
 Antes de chegar na IA, o secret já é mascarado (`triage/mask.py`) — o modelo vê
 `sk_l****************3abc`, nunca o valor completo.
 
+## Política de falsos positivos
+
+Três regras moldam o comportamento da triagem, e valem tanto para a heurística
+quanto para a IA:
+
+**O valor decide, não o caminho.** Estar em `tests/`, `docs/` ou `.env.example`
+não torna um finding falso positivo. Só é dispensado automaticamente quando o
+valor em si é inválido (`changeme`, `fake_token`, exemplo de documentação). Uma
+credencial de formato real em arquivo de teste vai para análise.
+
+**Segredo de teste deve ser explicitamente inválido.** Em vez de suprimir o
+arquivo, troque o valor por algo como `fake_token`. O `[allowlist]` já traz
+esses marcadores em `stopwords`, então nenhum bypass novo é necessário.
+
+**A confiança da IA não aparece na pipeline.** O número gerava discussão entre
+equipes; ele continua no `triage-report.json` para uso interno.
+
 ## Calibrar falsos positivos
 
 Cada run gera `suggested_rules.toml` com allowlists derivadas dos falsos
-positivos confirmados. Revise e mova os blocos úteis para o `.gitleaks.toml` do
-repositório real. Isso reduz o volume de findings — e de chamadas à IA — nas
-execuções seguintes.
+positivos confirmados, sempre **por valor** (`stopwords` e `regexes`), nunca por
+caminho. Sugestão por caminho é recusada e vira item de revisão manual.
+
+A diferença importa na prática: suprimir `paths` esconde um segredo novo
+inserido depois no mesmo arquivo, e é o que faz o arquivo de bypass crescer sem
+controle. Como `stopwords` são avaliadas contra o valor extraído, poucos itens
+cobrem muitos findings e o arquivo para de inflar.
+
+Revise o fragmento e cole os itens dentro do `[allowlist]` do `.gitleaks.toml`
+do repositório real.
+
+> O allowlist global do Gitleaks é uma **tabela única** (`[allowlist]`), não um
+> array. `[[allowlists]]` no nível global é aceito pelo parser e silenciosamente
+> ignorado — a supressão simplesmente não acontece.
 
 ## Validar a action antes de usar
 

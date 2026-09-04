@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from typing import Any, Literal
 
 from openai import BadRequestError, OpenAI
 from pydantic import BaseModel, Field
 
-from .heuristics import local_false_positive_hint
+from .heuristics import local_false_positive_hint, matched_placeholder
 from .mask import mask_secret, redact_in_text
 
 Verdict = Literal["true_positive", "false_positive", "uncertain"]
@@ -44,15 +43,20 @@ SYSTEM_PROMPT = """Você é um analista de AppSec revisando findings do Gitleaks
 
 Classifique cada finding como:
 - true_positive: credencial real ou altamente provável em código de aplicação/produção
-- false_positive: placeholder, exemplo, mock de teste, documentação, ou valor claramente fictício
+- false_positive: o VALOR em si é inválido (placeholder, fake_token, exemplo de documentação)
 - uncertain: evidência insuficiente
+
+Política obrigatória: estar em arquivo de teste, fixture ou documentação NÃO torna o
+finding falso positivo. Julgue pelo valor: se ele tem formato de credencial real, é
+true_positive mesmo em arquivo de teste. Segredo de teste deve ser um valor
+explicitamente inválido — quando não é, o time precisa revisar.
 
 Responda APENAS com JSON válido no formato:
 {
   "verdict": "true_positive" | "false_positive" | "uncertain",
   "confidence": 0.0-1.0,
   "reason": "explicação curta em português",
-  "suggested_allowlist": "regex ou path sugerido para .gitleaks.toml se FP, senão null"
+  "suggested_allowlist": "se FP: allowlist do PRÓPRIO VALOR, no formato stopwords = ['''fake_token'''] ou regexes = ['''regex-do-valor''']; NUNCA sugira paths (suprimir arquivo esconde segredo novo inserido depois); senão null"
 }
 
 Seja conservador: na dúvida, use uncertain (não dismiss automático).
@@ -73,30 +77,6 @@ TRIAGE_JSON_SCHEMA: dict[str, Any] = {
     },
     "required": ["verdict", "confidence", "reason", "suggested_allowlist"],
     "additionalProperties": False,
-}
-
-# Diretórios/arquivos que tipicamente concentram FPs em qualquer repositório
-FP_DIR_NAMES = {
-    "test",
-    "tests",
-    "spec",
-    "specs",
-    "fixtures",
-    "testdata",
-    "docs",
-    "doc",
-    "examples",
-    "example",
-    "samples",
-}
-
-FP_FILE_NAMES = {
-    ".env.example",
-    ".env.sample",
-    ".env.template",
-    "readme.md",
-    "changelog.md",
-    "contributing.md",
 }
 
 
@@ -211,11 +191,12 @@ def classify_with_llm(finding: dict[str, Any], client: OpenAI | None = None) -> 
 def classify_finding(finding: dict[str, Any], client: OpenAI | None = None) -> TriageResult:
     hint = local_false_positive_hint(finding)
     if hint:
+        token = matched_placeholder(finding)
         return TriageResult(
             verdict="false_positive",
             confidence=0.85,
             reason=f"Heurística local: {hint}",
-            suggested_allowlist=_suggest_from_path(finding),
+            suggested_allowlist=_suggest_stopword(token) if token else None,
             source="heuristic",
         )
     if not _has_credentials():
@@ -229,18 +210,15 @@ def classify_finding(finding: dict[str, Any], client: OpenAI | None = None) -> T
     return classify_with_llm(finding, client=client)
 
 
-def _suggest_from_path(finding: dict[str, Any]) -> str | None:
-    """Sugere allowlist a partir do diretório do finding, sem caminhos fixos."""
-    path = (finding.get("File") or finding.get("file") or "").replace("\\", "/").removeprefix("./")
-    if not path:
-        return None
+def _suggest_stopword(token: str) -> str:
+    """Allowlist pelo valor inválido, consolidável em poucas entradas.
 
-    parts = path.split("/")
-    for i, part in enumerate(parts[:-1]):
-        if part.lower() in FP_DIR_NAMES:
-            prefix = "/".join(parts[: i + 1])
-            return f"paths = ['''{re.escape(prefix)}/.*''']"
-
-    if parts[-1].lower() in FP_FILE_NAMES:
-        return f"paths = ['''{re.escape(path)}$''']"
-    return None
+    Stopwords e regexes são avaliadas contra o secret extraído, então um segredo
+    real inserido depois no mesmo arquivo continua sendo detectado — ao
+    contrário da supressão por caminho.
+    """
+    value = token.lower()
+    if set(value) == {"x"}:
+        # sequência de x tem tamanho variável: regex cobre todas de uma vez
+        return "regexes = ['''(?i)xxx+''']"
+    return f"stopwords = ['''{value}''']"

@@ -8,37 +8,35 @@ title = "secret-scan-ai-triage"
 useDefault = true
 
 # ---------------------------------------------------------------------------
-# Allowlists genéricas: cortam FPs óbvios de documentação e exemplos.
-# Código de aplicação NÃO entra aqui — esses findings vão para a IA.
+# O allowlist global do Gitleaks é UMA tabela ([allowlist]), não um array:
+# `[[allowlists]]` no nível global é silenciosamente ignorado.
+# Os critérios abaixo combinam por OR — cada um vale de forma independente.
 # ---------------------------------------------------------------------------
+[allowlist]
 
-[[allowlists]]
-id = "docs-and-markdown"
-description = "Exemplos em documentação"
+# Supressão por caminho só para conteúdo gerado ou dependência de terceiros.
+# Arquivo escrito por pessoa (teste, doc, exemplo) não entra aqui: suprimir o
+# caminho esconderia um segredo novo inserido nele depois.
 paths = [
   '''gitleaks\.toml''',
-  '''(.*?)(README|CHANGELOG|LICENSE|PATENTS|CONTRIBUTING|COPYING)(\..*)?$''',
-  '''(^|/)(docs?|examples?|samples)/.*''',
+  '''(^|/)(node_modules|vendor|dist|build|\.venv|target)/.*''',
+  '''(^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|Gemfile\.lock|go\.sum|composer\.lock)$''',
 ]
 
-[[allowlists]]
-id = "env-examples"
-description = "Arquivos de exemplo de ambiente"
-paths = [
-  '''(.*?)(\.env\.example|\.env\.sample|\.env\.template)$''',
-]
-
-[[allowlists]]
-id = "lockfiles-and-vendor"
-description = "Dependências e artefatos gerados"
-paths = [
-  '''(^|/)(node_modules|vendor|dist|build|\.venv)/.*''',
-  '''(^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|Gemfile\.lock|go\.sum)$''',
-]
-
-[[allowlists]]
-id = "obvious-placeholders"
-description = "Placeholders comuns que não são secrets reais"
+# regexes e stopwords são avaliados contra o valor extraído, então um segredo
+# real em arquivo de teste continua sendo detectado.
 regexes = [
-  '''(?i)(changeme|replace_me|your[_-]?api[_-]?key|xxx+|example|dummy|placeholder|not[_-]?a[_-]?secret)''',
+  '''(?i)(changeme|replace[_-]?me|your[_-]?api[_-]?key|not[_-]?a[_-]?secret|placeholder|dummy|redacted)''',
+  '''(?i)xxx+''',
+]
+
+# Valores explicitamente inválidos, conforme a política para segredos de teste.
+stopwords = [
+  "fake_token",
+  "fake_secret",
+  "fake_key",
+  "fake_password",
+  "invalid_token",
+  "invalid_key",
+  "example",
 ]

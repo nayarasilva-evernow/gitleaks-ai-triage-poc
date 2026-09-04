@@ -1,4 +1,9 @@
-"""Formatação amigável do relatório de triagem (console + GitHub Actions)."""
+"""Formatação amigável do relatório de triagem (console + GitHub Actions).
+
+A confiança da IA não é exibida na pipeline por decisão de processo — o número
+gerava discussão entre equipes. O valor continua no relatório JSON, para uso
+interno da triagem.
+"""
 
 from __future__ import annotations
 
@@ -16,11 +21,14 @@ VERDICT_LABEL = {
 SOURCE_LABEL = {
     "llm": "IA",
     "heuristic": "Heurística",
-}
+}   
+
+
+
 
 # Docs versionados no repositório (próximos passos / Cyber)
 DOC_ABRIR_CHAMADO = "docs/abrir-chamado-cyber.html"
-DOC_CARTA_RISCO = "docs/carta-de-risco.html"
+DOC_CARTA_RISCO = "docs/carta-de-risco.html"   
 
 
 def _repo_blob_url(rel_path: str) -> str | None:
@@ -80,11 +88,9 @@ def print_console_report(report: list[dict[str, Any]]) -> None:
         print("-" * width)
         for i, entry in enumerate(items, start=1):
             src = SOURCE_LABEL.get(entry.get("source", ""), entry.get("source", "?"))
-            conf = entry.get("confidence")
-            conf_s = f"{conf:.0%}" if isinstance(conf, (int, float)) else "?"
             print(f"  {i}. {_loc(entry)}")
             print(f"     Regra      : {entry.get('rule_id') or '—'}")
-            print(f"     Confiança  : {conf_s}  |  Fonte: {src}")
+            print(f"     Fonte      : {src}")
             print(f"     Motivo     : {entry.get('reason') or '—'}")
             if entry.get("suggested_allowlist"):
                 print(f"     Sugestão   : {entry['suggested_allowlist']}")
@@ -106,7 +112,8 @@ def print_gate_result(ok: bool, tps: int, uncertain: int) -> None:
         print()
         print("  Próximos passos:")
         print("  1. Remova o secret do código / rotacione a credencial")
-        print("  2. Se for FP legítimo, ajuste .gitleaks.toml (allowlist)")
+        print("  2. Em teste, troque o valor por um explicitamente inválido")
+        print("     (ex.: fake_token) — não suprima o arquivo inteiro")
         print("  3. Abra chamado na Cybersegurança (guia):")
         print(f"     {chamado}")
         print("  4. Se Cyber pedir carta de risco, use o modelo:")
@@ -170,16 +177,15 @@ def write_github_step_summary(
         icon, label, _ = VERDICT_LABEL[verdict]
         lines.append(f"## {icon} {label}")
         lines.append("")
-        lines.append("| Arquivo | Linha | Regra | Confiança | Motivo |")
-        lines.append("|---------|------:|-------|----------:|--------|")
+        lines.append("| Arquivo | Linha | Regra | Fonte | Motivo |")
+        lines.append("|---------|------:|-------|-------|--------|")
         for entry in items:
             file = entry.get("file") or "?"
             line = entry.get("start_line") or "—"
             rule = entry.get("rule_id") or "—"
-            conf = entry.get("confidence")
-            conf_s = f"{conf:.0%}" if isinstance(conf, (int, float)) else "—"
+            src = SOURCE_LABEL.get(entry.get("source", ""), entry.get("source", "?"))
             reason = (entry.get("reason") or "—").replace("|", "\\|")
-            lines.append(f"| `{file}` | {line} | `{rule}` | {conf_s} | {reason} |")
+            lines.append(f"| `{file}` | {line} | `{rule}` | {src} | {reason} |")
         lines.append("")
 
     if not ok:
@@ -189,7 +195,9 @@ def write_github_step_summary(
                 "## Próximos passos",
                 "",
                 "1. Remova o secret do código e **rotacione** a credencial.",
-                "2. Se for falso positivo, ajuste allowlist em `.gitleaks.toml`.",
+                "2. Em arquivo de teste, substitua o valor por um explicitamente inválido"
+                " (ex.: `fake_token`). Supressão do arquivo inteiro não é permitida:"
+                " esconderia um segredo novo inserido depois.",
                 f"3. Artifacts desta run: `{out_json.name}`, `{suggested_toml.name}`.",
                 "",
                 "### Abrir chamado na Cybersegurança",
