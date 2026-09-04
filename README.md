@@ -18,7 +18,7 @@ scripts/run_local.ps1
 2. Heurística local elimina FPs óbvios (docs/tests/placeholders)
 3. LLM (Groq/Ollama) classifica o restante: `true_positive` | `false_positive` | `uncertain`
 4. Gate falha só com `true_positive`
-5. `suggested_rules.toml` sugere allowlists a partir dos FPs
+5. `suggested_rules.toml` sugere allowlists por valor a partir dos FPs
 
 ## IA gratuita
 
@@ -60,12 +60,17 @@ $env:GROQ_API_KEY = "gsk-..."
 
 ## Sample-app (vulnerabilidades propositais)
 
-| Arquivo | Tipo | Esperado |
-|---------|------|----------|
-| `sample-app/app/config.py` | Stripe `sk_live_...` | **true positive** |
-| `sample-app/app/aws_client.py` | AWS keys | **true positive** |
-| `sample-app/tests/test_auth.py` | mocks | false positive |
-| `sample-app/docs/setup.md` | exemplos | false positive / allowlist |
-| `sample-app/.env.example` | placeholders | allowlist |
+| Arquivo | Valor | Esperado |
+|---------|-------|----------|
+| `sample-app/app/config.py` | Stripe `sk_live_...` | **análise DevSecOps** |
+| `sample-app/app/aws_client.py` | AWS keys | **análise DevSecOps** |
+| `sample-app/tests/test_auth.py` | `ghp_xxxx...` | falso positivo — valor inválido explícito |
+| `sample-app/tests/test_auth.py` | `sk_test_...` | **análise** — formato real, mesmo em teste |
+| `sample-app/docs/setup.md` | `sk-proj-EXAMPLE...` | falso positivo — valor inválido explícito |
+| `sample-app/.env.example` | `changeme`, `replace_me` | falso positivo — valor inválido explícito |
+| `sample-app/.env.example` | `sk_test_...`, `AKIA...` | **análise** — formato real, sem marcador de invalidez |
 
 Todos os valores são **fictícios**.
+
+Estar em `tests/` ou `docs/` não dispensa nada: quem decide é o valor. Por isso o
+mesmo arquivo aparece nas duas situações acima.
