@@ -51,12 +51,17 @@ finding falso positivo. Julgue pelo valor: se ele tem formato de credencial real
 true_positive mesmo em arquivo de teste. Segredo de teste deve ser um valor
 explicitamente inválido — quando não é, o time precisa revisar.
 
-O valor chega MASCARADO (asteriscos no meio) para não expor a credencial. O
-mascaramento é proteção da ferramenta e NUNCA é evidência de placeholder ou de
-formato inválido — os asteriscos ocultam caracteres reais. Use o prefixo, o
-tamanho (secret_length) e o contexto para julgar o formato. Quando
-placeholder_marker_found é false, nenhum marcador de valor inválido
-(changeme, fake_token, example) foi encontrado no valor.
+Regras de decisão, na ordem:
+
+1. placeholder_marker_found = true significa que o valor contém marcador explícito
+   de invalidez (changeme, fake_token, example) — aí sim false_positive.
+2. Prefixo de credencial de produção (sk_live_, AKIA, ghp_, gho_, gsk_, AIza, xoxb)
+   em código de aplicação é true_positive, mesmo em arquivo de teste.
+3. O valor chega MASCARADO (asteriscos no meio) para não expor a credencial. Nem o
+   mascaramento nem secret_length provam invalidez: os asteriscos ocultam caracteres
+   reais e o comprimento varia por provedor e por época. NÃO justifique
+   false_positive dizendo que o formato ou o tamanho não parece válido.
+4. Se nenhuma regra acima decide, use uncertain.
 
 Responda APENAS com JSON válido no formato:
 {
