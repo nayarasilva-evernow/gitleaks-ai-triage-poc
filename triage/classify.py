@@ -51,6 +51,13 @@ finding falso positivo. Julgue pelo valor: se ele tem formato de credencial real
 true_positive mesmo em arquivo de teste. Segredo de teste deve ser um valor
 explicitamente inválido — quando não é, o time precisa revisar.
 
+O valor chega MASCARADO (asteriscos no meio) para não expor a credencial. O
+mascaramento é proteção da ferramenta e NUNCA é evidência de placeholder ou de
+formato inválido — os asteriscos ocultam caracteres reais. Use o prefixo, o
+tamanho (secret_length) e o contexto para julgar o formato. Quando
+placeholder_marker_found é false, nenhum marcador de valor inválido
+(changeme, fake_token, example) foi encontrado no valor.
+
 Responda APENAS com JSON válido no formato:
 {
   "verdict": "true_positive" | "false_positive" | "uncertain",
@@ -115,6 +122,11 @@ def _finding_payload(finding: dict[str, Any]) -> dict[str, Any]:
         "commit": finding.get("Commit") or finding.get("commit"),
         "author": finding.get("Author") or finding.get("author"),
         "secret_masked": mask_secret(secret),
+        # o mascaramento apaga o formato do valor; sem esses dois campos a IA
+        # conclui "asteriscos = formato inválido = placeholder" e dispensa
+        # credencial real
+        "secret_length": len(secret),
+        "placeholder_marker_found": matched_placeholder(finding) is not None,
         "snippet_redacted": redact_in_text(snippet, secret)[:500],
     }
 

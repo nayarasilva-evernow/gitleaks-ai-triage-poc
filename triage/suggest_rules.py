@@ -69,6 +69,11 @@ def build_suggested_toml(triaged: list[dict[str, Any]]) -> str:
         if not key or not items:
             manual.append((file, f"sugestão não reconhecida: {suggestion}"))
             continue
+        if any("*" in value for value in items):
+            # a IA às vezes devolve o valor mascarado que recebeu; como allowlist
+            # isso nunca casa com o secret real
+            manual.append((file, "sugestão contém valor mascarado — inútil como allowlist"))
+            continue
         for value in items:
             buckets[key][value].append(file)
 
