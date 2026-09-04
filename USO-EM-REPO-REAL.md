@@ -107,8 +107,14 @@ valor em si é inválido (`changeme`, `fake_token`, exemplo de documentação). 
 credencial de formato real em arquivo de teste vai para análise.
 
 **Segredo de teste deve ser explicitamente inválido.** Em vez de suprimir o
-arquivo, troque o valor por algo como `fake_token`. O `[allowlist]` já traz
-esses marcadores em `stopwords`, então nenhum bypass novo é necessário.
+arquivo, troque o valor por algo como `fake_token`. A heurística local reconhece
+esses marcadores e classifica como falso positivo sem chamar a IA — nenhum
+bypass novo é necessário.
+
+Note onde cada camada atua. O `[allowlist]` do Gitleaks cobre apenas conteúdo
+gerado (`node_modules`, lockfiles), porque o que ele suprime desaparece do
+relatório. Placeholders ficam com a heurística: custo zero e veredicto visível
+para quem abriu o PR.
 
 **A confiança da IA não aparece na pipeline.** O número gerava discussão entre
 equipes; ele continua no `triage-report.json` para uso interno.

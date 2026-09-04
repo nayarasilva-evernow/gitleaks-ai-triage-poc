@@ -14,29 +14,17 @@ useDefault = true
 # ---------------------------------------------------------------------------
 [allowlist]
 
-# Supressão por caminho só para conteúdo gerado ou dependência de terceiros.
-# Arquivo escrito por pessoa (teste, doc, exemplo) não entra aqui: suprimir o
-# caminho esconderia um segredo novo inserido nele depois.
+# Só conteúdo gerado ou dependência de terceiros, onde não há o que revisar.
+#
+# Placeholders (changeme, fake_token) NÃO entram aqui de propósito: suprimir no
+# scan os torna invisíveis no relatório. Quem classifica esses valores é a
+# heurística local (triage/heuristics.py) — de graça, sem chamar a IA, e com o
+# veredicto visível para quem abriu o PR.
+#
+# Arquivo escrito por pessoa (teste, doc, exemplo) também não entra aqui:
+# suprimir o caminho esconderia um segredo novo inserido nele depois.
 paths = [
   '''gitleaks\.toml''',
   '''(^|/)(node_modules|vendor|dist|build|\.venv|target)/.*''',
   '''(^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|Gemfile\.lock|go\.sum|composer\.lock)$''',
-]
-
-# regexes e stopwords são avaliados contra o valor extraído, então um segredo
-# real em arquivo de teste continua sendo detectado.
-regexes = [
-  '''(?i)(changeme|replace[_-]?me|your[_-]?api[_-]?key|not[_-]?a[_-]?secret|placeholder|dummy|redacted)''',
-  '''(?i)xxx+''',
-]
-
-# Valores explicitamente inválidos, conforme a política para segredos de teste.
-stopwords = [
-  "fake_token",
-  "fake_secret",
-  "fake_key",
-  "fake_password",
-  "invalid_token",
-  "invalid_key",
-  "example",
 ]
